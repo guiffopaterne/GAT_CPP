@@ -72,6 +72,7 @@
         "variant": "cpp",
         "core": "cpp",
         "typeindex": "cpp",
-        "cfenv": "cpp"
+        "cfenv": "cpp",
+        "dense": "cpp"
     }
 }

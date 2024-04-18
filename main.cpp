@@ -49,7 +49,7 @@ int main() {
     cout<<"chargement contruction test_mask"<<endl;
     Eigen::VectorXd test_mask = createMask(num_nodes, 0.15, mask);
     cout<<"Construction du Gat en cours"<<endl;
-    GAT gat = GAT(num_features, 10, 2, 0.6,0.2, 3);
+    GAT gat = GAT(num_features, 3, 2, 0.6,0.2);
     // train_batch();
     cout<<"Fin de la Construction du Gat"<<endl;
     cout<<"Conversion du label en onehot encoder"<<endl;

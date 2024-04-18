@@ -26,7 +26,7 @@ using namespace Eigen;
         attention = softmax(attention,1);
         attention = attention.unaryExpr([this](double x) { return dropNode(x); });
 
-        Eigen::MatrixXd hPrime = attention * Wh;
+        Eigen::MatrixXd hPrime = attention*Wh;
         cout<<"les dimensions des hPrime ="<<hPrime.rows()<<"x"<<hPrime.cols()<<endl;
         if (concat) {
             return hPrime.unaryExpr([this](double x) { return elu(x); });
@@ -35,7 +35,7 @@ using namespace Eigen;
         }
     }
     std::tuple<Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd> GatLayer::backward(const Eigen::MatrixXd& h, const Eigen::MatrixXd& adj, const Eigen::MatrixXd& gradput) {
-        Eigen::MatrixXd Wh = h * W;
+        Eigen::MatrixXd Wh = h*W;
         Eigen::MatrixXd e = prepareAttentionalMechanismInput(Wh);
         Eigen::MatrixXd attention = -9e15 * Eigen::MatrixXd::Ones(e.rows(),e.cols());
         attention = (adj.array()>0).select(e,attention);
@@ -48,17 +48,20 @@ using namespace Eigen;
         Eigen::MatrixXd grad_Wh = gradput * attention;
 
         // Gradients with respect to attention
-        Eigen::MatrixXd grad_attention = gradput * Wh;
+        cout<<"les dimensions de gradput="<<gradput.rows()<<"x"<<gradput.cols()<<" W="<< Wh.rows()<<"x"<<Wh.cols()<<endl;
+
+        Eigen::MatrixXd grad_attention = gradput*Wh;
 
         // Gradients with respect to a
-        Eigen::MatrixXd grad_a = grad_attention.array() * prepareAttentionalMechanismInputPrime(Wh).array();
+        Eigen::MatrixXd grad_a = grad_attention* prepareAttentionalMechanismInputPrime(Wh);
         grad_a = grad_a.transpose() * h;
 
         // Gradients with respect to W
         Eigen::MatrixXd grad_W = grad_Wh.transpose() * h;
-
+        cout<<"les dimensions des grad_Wh ="<<grad_Wh.rows()<<"x"<<grad_Wh.cols()<<" W  rows ="<< W.rows()<< " W cols ="<<W.cols()<<endl;
         // Gradients with respect to h
         Eigen::MatrixXd grad_h = gradput * (W.transpose() * grad_Wh);
+        backward_update_parameters(h, grad_h);
 
         return std::make_tuple(grad_W, grad_a, grad_h);
     }
@@ -147,13 +150,13 @@ using namespace Eigen;
     
     Eigen::MatrixXd GatLayer::attention_backward(const Eigen::MatrixXd& grad_h) {
         // Calcul des gradients pour le mécanisme attentionnel lors de la rétropropagation
-        Eigen::MatrixXd grad_Wh = grad_h.array() * attention_derivative().array();
+        Eigen::MatrixXd grad_Wh = grad_h * attention_derivative();
         return grad_Wh;
     }
 
     Eigen::MatrixXd GatLayer::attention_derivative() {
         // Calcul de la dérivée de la fonction d'attention
-        return a.topRows(out_features).array() * a.bottomRows(out_features).transpose().array();
+        return a.topRows(out_features) * a.bottomRows(out_features).transpose();
     }
 
     // template <typename Archive>

@@ -17,12 +17,12 @@ using namespace std;
 class GAT {
 public:
     GAT() = default; 
-    GAT(int nfeat, int nhid, int nclass, double dropout, double alpha, int nheads);
+    GAT(int nfeat, int nhid, int nclass, double dropout, double alpha);
 
     Eigen::MatrixXd forward(const Eigen::MatrixXd& x, const Eigen::MatrixXd& adj);
 
-     void backward(const Eigen::MatrixXd& x, const Eigen::MatrixXd& adj, const Eigen::MatrixXd& grad_output);
-     Eigen::VectorXd evaluate_node(const Eigen::MatrixXd& node_features, const Eigen::MatrixXd& adj);
+    Eigen::MatrixXd backward(const Eigen::MatrixXd& x, const Eigen::MatrixXd& adj, const Eigen::MatrixXd& grad_output);
+    Eigen::VectorXd evaluate_node(const Eigen::MatrixXd& node_features, const Eigen::MatrixXd& adj);
     // void save_model(const std::string& filename);
 
     // // Fonction de chargement du modèle
@@ -48,13 +48,12 @@ public:
 
 
     void set_num_epochs(int num_epochs);
-    int nhid;
 
 
 private:
     double dropout;
     double alpha;
-    int nheads;
+    int nhid;
     int num_epochs = 10;
     int nclass;
     
