@@ -2,8 +2,8 @@ CXX := g++
 CXXFLAGS := -std=c++11 -g -O3 -lpthread -Iutils
 LDFLAGS := -lboost_serialization
 
-SOURCES := utils/functions.cpp utils/GatLayer.cpp utils/GatNetwork.cpp utils/DataLoader.cpp main.cpp
-HEADERS := utils/functions.hpp utils/vector_serialization.hpp utils/GatLayer.hpp utils/GatNetwork.hpp utils/DataLoader.hpp
+SOURCES := utils/functions.cpp model/GatUnit.cpp model/GatLayer.cpp model/GatNetwork.cpp utils/DataLoader.cpp main_sequentielle.cpp
+HEADERS := utils/functions.hpp utils/vector_serialization.hpp model/GatUnit.hpp model/GatLayer.hpp model/GatNetwork.hpp utils/DataLoader.hpp
 
 OBJECTS := $(SOURCES:.cpp=.o)
 EXECUTABLE := gat
@@ -18,10 +18,11 @@ $(EXECUTABLE): $(OBJECTS)
 
 
 # Rules for dependencies
-utils/GatLayer.o: utils/GatLayer.cpp utils/GatLayer.hpp utils/vector_serialization.hpp utils/functions.hpp
-utils/GatNetwork.o: utils/GatNetwork.cpp utils/GatNetwork.hpp utils/GatLayer.hpp utils/vector_serialization.hpp utils/functions.hpp
+model/GatUnit.o : model/GatUnit.cpp model/GatUnit.hpp  utils/vector_serialization.hpp utils/functions.hpp
+model/GatLayer.o: model/GatLayer.cpp model/GatLayer.hpp model/GatUnit.hpp  utils/vector_serialization.hpp utils/functions.hpp
+model/GatNetwork.o: utils/GatNetwork.cpp utils/GatNetwork.hpp utils/GatLayer.hpp model/GatUnit.hpp  utils/vector_serialization.hpp utils/functions.hpp
 utils/DataLoader.o: utils/DataLoader.cpp utils/DataLoader.hpp
-main.o: main.cpp utils/GatLayer.hpp utils/GatNetwork.hpp utils/DataLoader.hpp utils/functions.hpp
+main_sequentielle.o: main_sequentielle.cpp model/GatLayer.hpp model/GatNetwork.hpp utils/DataLoader.hpp utils/functions.hpp
 
 
 clean:
