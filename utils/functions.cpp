@@ -1,8 +1,8 @@
 
 #include <iostream>
 #include <eigen3/Eigen/Dense>
-#include <eigen3/Eigen/Sparse>
-#include <unordered_map>
+// #include <eigen3/Eigen/Sparse>
+// #include <unordered_map>
 #include <vector>
 #include <tuple>
 #include "functions.hpp"
@@ -83,6 +83,17 @@ double accuracy(const Eigen::VectorXd& output, const Eigen::VectorXd& labels, co
     return correct_predictions/total_examples;
 }
 
+double accuracy(const Eigen::VectorXd& output, const Eigen::VectorXd& labels_sub){
+    head(output,"output");
+    head(labels_sub,"labels_sub");
+    int correct_predictions=0;
+    int total_examples=labels_sub.size();
+    for(int i= 0; i < output.size();++i)
+        if(output(i)==labels_sub(i)) 
+            correct_predictions++;
+    return correct_predictions/total_examples;
+}
+
 Eigen::MatrixXd logSoftmax(const Eigen::MatrixXd& input, int axis) {
     return softmax(input,axis).array().log();
 }
@@ -116,19 +127,47 @@ double loss(const Eigen::MatrixXd& output,const Eigen::VectorXi& mask){
     }
     return l;
 }
+// sans mask
+double nllLoss(const Eigen::MatrixXd& SoftmaxOutput, const Eigen::MatrixXd& target) {
+    if(SoftmaxOutput.rows()!= target.rows() || SoftmaxOutput.cols()!= target.cols()){
+        std::invalid_argument("Erreur : Axe incorrect. Utilisez 0 pour les colonnes, 1 pour les lignes." );
+    }
+    // Negative Log Likelihood Loss
+    Eigen::MatrixXd x = -1*target.cwiseProduct(logSoftmax(SoftmaxOutput));
+    int sum=0;
+    for(int i=0; i<target.rows(); ++i) sum+=x.row(i).sum();
+    return sum/target.rows();
+}
+double nllLoss(const Eigen::MatrixXd& Output, const Eigen::MatrixXd& target,int axis) {
+    // Negative Log Likelihood Loss
+    Eigen::MatrixXd x = -1*target.cwiseProduct(logSoftmax(Output,axis));
+    int sum=0;
+    for(int i=0; i<target.rows(); ++i) sum+=x.row(i).sum();
+    return sum/target.rows();
+}
+double loss(const Eigen::MatrixXd& output){
+    return output.sum()/output.rows();
+}
+
 
 std::tuple<Eigen::VectorXi, Eigen::VectorXi, Eigen::VectorXi> createMask(const int size,const int train_size, const int val_size, bool isShuffle=false) {
-    Eigen::VectorXi train_mask= Eigen::VectorXi::Zero(train_size);
-    Eigen::VectorXi val_mask = Eigen::VectorXi::Zero(val_size);
-    Eigen::VectorXi test_mask = Eigen::VectorXi::Zero(size-val_size-train_size);
-    Eigen::VectorXi mask = Eigen::VectorXi::Zero(size);
-    for(int i=0;i<size;++i) mask[i]=i;
-    if(isShuffle){
-    std::random_shuffle(mask.begin(),mask.end());
-    }
-    for(int i=0;i<train_size;++i) train_mask(i)=mask(i);
-    for(int i=train_size,j=0;i<train_size+val_size;++i,++j) val_mask(j)=mask(i);
-    for(int i=train_size+val_size,j=0;i<size;++i,++j) train_mask(j)=mask(i);
+    cout<<"element size "<<size<<" train size"<<train_size<<" val size"<<val_size<<" test size"<<size-val_size-train_size << endl;
+    Eigen::VectorXi train_mask(train_size);
+    Eigen::VectorXi val_mask(val_size);
+    Eigen::VectorXi test_mask(size-val_size-train_size);
+    cout<<"element size "<<size<<" train size"<<train_mask.size()<<" val size"<<val_size<<" test size"<<size-val_size-train_size << endl;
+    
+    // Eigen::VectorXi mask = Eigen::VectorXi::Zero(size);
+    // if(isShuffle){
+    // std::random_shuffle(mask.begin(),mask.end());
+    // }
+    int t=0,v=0,T=0;
+    for(int i=0;i<size;++i){
+        if(i<train_size) {train_mask(t)=i; t++;}
+        else if (i>=train_size && i< train_size+val_size){ val_mask(v)=i; v++;}
+        else{ test_mask(T)=i; T++;}
+        }
+    
     return std::make_tuple(train_mask,val_mask,test_mask);
 }
 
@@ -220,3 +259,4 @@ Eigen::MatrixXd softmax_prime(const Eigen::MatrixXd& S) {
 void shape(const Eigen::MatrixXd& m,const string name,bool verbose=true){
     if(verbose) cout<<"Dimension de "<<name<<"="<<m.rows()<<"x"<<m.cols()<<endl;
 }
+

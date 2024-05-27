@@ -1,11 +1,18 @@
 
 #include <iostream>
-#include <eigen3/Eigen/Dense>
 #include <cmath>
 #include <random>
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/archive/text_iarchive.hpp>
-#include <tuple>
+#include <eigen3/Eigen/Dense>
+
+ // Incluez avant Cereal Serialization
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/memory.hpp>
+#include <cereal/cereal.hpp>
+#include <cereal/types/polymorphic.hpp>
+
+#include <cereal/types/string.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/tuple.hpp>
 
 #include "GatUnit.hpp"
 #include "../utils/functions.hpp"
@@ -45,14 +52,14 @@ using namespace Eigen;
     }
 
     Eigen::MatrixXd GatUnit::forward(const Eigen::MatrixXd& X, const Eigen::MatrixXd& adj,bool isTrain=true) {
-        Eigen::MatrixXd h;
-        if(isTrain)
-            h = X.unaryExpr([this](double x) { return dropNode(x); });
-        cout<<"les dimensions des H ="<<h.rows()<<"x"<<h.cols()<<" W   ="<< W.rows()<< "X"<<W.cols()<<endl;
-        // calcule du node embedding
-        Wh = h * W;
-        if(isTrain)
+        if(isTrain){
+            Wh = X.unaryExpr([this](double x) { return dropNode(x); })*W;
             Wh = Wh.unaryExpr([this](double x) { return dropNode(x); });
+        }
+        else Wh = X* W;
+        shape(X,"X",verbose);
+        shape(W,"W",verbose);
+        // calcule du node embedding
         shape(Wh,"Wh",verbose);
         Eigen::MatrixXd Wh1 = Wh.cwiseProduct(scoring_fn_source.replicate(Wh.rows(),1));
         Eigen::MatrixXd Wh2 = Wh.cwiseProduct(scoring_fn_target.replicate(Wh.rows(),1));
@@ -84,7 +91,7 @@ std::tuple<Eigen::MatrixXd,Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Ei
         shape(d_h_prime,"d_h_prime",verbose);
         shape(Wh,"Wh",verbose);
         if(d_h_prime.cols() != Wh.rows()){
-
+            cerr<<"erreur taille des matrix "<<endl;
         }
         Eigen::MatrixXd d_e  = d_h_prime * Wh.transpose();
         shape(d_e,"d_e",verbose);
@@ -168,14 +175,7 @@ std::tuple<Eigen::MatrixXd,Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Ei
     return  (random_value < dropout ) ? 0.00: x;
     }
 
-    // template <typename Archive>
-    // void GatUnit::serialize(Archive& ar, const unsigned int version) {
-    //     // Ajoutez ici la sérialisation/désérialisation des membres de votre classe GatUnit
-    //     ar & W & a & dropout & alpha & concat & in_features & out_features; // Ajoutez les membres de GatUnit ici
-    // }
-
-    // template void GatUnit::serialize<boost::archive::text_iarchive>(boost::archive::text_iarchive&, const unsigned int);
-    // template void GatUnit::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive&, const unsigned int);
+    
 
         // std::tuple<Eigen::MatrixXd,Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd> GatUnit::backward(const Eigen::MatrixXd& h, const Eigen::MatrixXd& adj, const Eigen::MatrixXd& grad_output ) {
         // // Gradient w.r.t. attention (d_attention)

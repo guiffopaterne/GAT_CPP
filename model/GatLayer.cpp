@@ -1,16 +1,17 @@
 #include <iostream>
 #include <eigen3/Eigen/Dense>
-#include <eigen3/unsupported/Eigen/CXX11/Tensor>
 #include <cmath>
 #include <random>
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/archive/text_iarchive.hpp>
-#include <tuple>
+
+#include <cereal/types/string.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/tuple.hpp>
 
 #include "GatLayer.hpp"
 #include "functions.hpp"
 #include "GatUnit.hpp"
-using namespace std;
+
+using namespace std; 
 using namespace Eigen;
 
     GatLayer::GatLayer(int in_features, int out_features,int num_of_heads ,double dropout, double alpha, bool concat,string name,bool verbose)
@@ -67,11 +68,13 @@ using namespace Eigen;
     Eigen::MatrixXd GatLayer::forward(const Eigen::MatrixXd& h, const Eigen::MatrixXd& adj,bool isTrain=true) {
         std::vector<Eigen::MatrixXd> head_outputs; // Vecteur pour stocker les sorties de chaque tête
         X=h;
+        shape(X,"X",verbose);
+        shape(h,"h",verbose);
         cout<<" forward en cours \n"<<endl;
         // Pour chaque tête d'attention, calculer la sortie et l'ajouter au vecteur head_outputs
         for (int i = 0; i < num_of_heads; ++i) {
             cout<<"\t\t forward du head ="<<i+1<<endl;
-            head_outputs.push_back(layer[i].forward(X, adj,isTrain)); // Appel à la fonction forward de chaque tête
+            head_outputs.push_back(layer[i].forward(h, adj,isTrain)); // Appel à la fonction forward de chaque tête
             cout<<" \t\tfin "<<i+1<<"\n"<<endl;
         }
 
@@ -111,19 +114,7 @@ using namespace Eigen;
         // Combinez les gradients de chaque tête pour obtenir le gradient total
         Eigen::MatrixXd total_gradient = sum_heads(head_gradients);
         return total_gradient;
-        // return std::make_tuple(grad_W, grad_h);
     }
 
-
-    
-
-    
-
-    // template <typename Archive>
-    // void GatLayer::serialize(Archive& ar, const unsigned int version) {
-    //     // Ajoutez ici la sérialisation/désérialisation des membres de votre classe GatLayer
-    //     ar & W & a & dropout & alpha & concat & in_features & out_features; // Ajoutez les membres de GatLayer ici
-    // }
-
-    // template void GatLayer::serialize<boost::archive::text_iarchive>(boost::archive::text_iarchive&, const unsigned int);
-    // template void GatLayer::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive&, const unsigned int);
+    // Versioned deserialization (optional, for future compatibility)
+   

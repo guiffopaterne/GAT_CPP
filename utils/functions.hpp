@@ -5,6 +5,7 @@
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/Sparse>
 #include <unordered_map>
+#include <cereal/cereal.hpp>
 #include <vector>
 using namespace std;
 
@@ -35,6 +36,15 @@ std::tuple<Eigen::MatrixXd,Eigen::MatrixXd,Eigen::VectorXd> create_sub_data(cons
 Eigen::VectorXd create_sub_labels_vector(const Eigen::VectorXd& labels_vector, const Eigen::VectorXi& mask);
 Eigen::MatrixXd create_sub_adjacency_matrix(const Eigen::MatrixXd& adj_matrix, const Eigen::VectorXi& mask);
 
+// sans mask
+double loss(const Eigen::MatrixXd& output);
+double nllLoss(const Eigen::MatrixXd& SoftmaxOutput, const Eigen::MatrixXd& target);
+double nllLoss(const Eigen::MatrixXd& Output, const Eigen::MatrixXd& target,int axis);
+double accuracy(const Eigen::VectorXd& output, const Eigen::VectorXd& labels);
+
+
 
 void head(const Eigen::MatrixXd& M,string name,int ligne);
+
+
 #endif
