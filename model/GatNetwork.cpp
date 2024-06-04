@@ -41,43 +41,40 @@ GAT::GAT(int num_of_layers, std::vector<int> nhead,std::vector<int> num_features
 }
 
 
-Eigen::MatrixXd GAT::forward(const Eigen::MatrixXd& X, const Eigen::MatrixXd& adj,bool isTrain=true){
+Eigen::MatrixXd GAT::forward(const Eigen::MatrixXd& X, const Eigen::MatrixXd& adj,int num_thread,int num_thread_head,bool isTrain=true){
     int el = 1;
     int numAttentions = attentions.size();
     if(isTrain)cout<<" forward debut layer "<<el;
     else cout<<" EVALUATION  layer "<<el;
-    Eigen::MatrixXd r = attentions[el-1].forward(X, adj,isTrain);
-    el++;
-    cout<<"FIN 1"<<endl;
+    Eigen::MatrixXd r = X;
     shape(r,"r",verbose);
-    for (int i = 1; i < numAttentions; ++i) {
+    for (int i = 0; i < numAttentions; ++i) {
         cout<<" forward debut layer.."<<el;
-        r = attentions[i].forward(r, adj,isTrain);
+        r = attentions[i].forward(r, adj, num_thread_head,isTrain);
         cout<<" FIN layer "<<el<<endl;
         shape(r,"r",verbose);
-        el++;
     }
     cout<<"FIN "<< el-1<<endl;
     return r;
     }
 
-Eigen::MatrixXd GAT::backward(const Eigen::MatrixXd& adj, const Eigen::MatrixXd& grad_output,double lr,double beta1 ,double beta2 ,double epsilon) {
+Eigen::MatrixXd GAT::backward(const Eigen::MatrixXd& adj, int num_thread,int num_thread_head,const Eigen::MatrixXd& grad_output,double lr,double beta1 ,double beta2 ,double epsilon) {
     Eigen::MatrixXd grad_h = grad_output;
     int i = attentions.size();
     // Backward pass through each attention layer
     int el=1;
     while(i>0){
         cout<<"couche n-"<<i<<endl;
-        grad_h = attentions[i-1].backward(adj, grad_h,lr,beta1,beta2,epsilon);
+        grad_h = attentions[i-1].backward(adj, num_thread_head,grad_h,lr,beta1,beta2,epsilon);
         i--;
     }
     return grad_h;
 }
 
-std::tuple<double,double> GAT::evaluate(const Eigen::MatrixXd& node_features, const Eigen::MatrixXd& adj,const Eigen::VectorXd& labels ,const Eigen::VectorXi& val_mask) {
+std::tuple<double,double> GAT::evaluate(const Eigen::MatrixXd& node_features, const Eigen::MatrixXd& adj,int num_thread,const Eigen::VectorXd& labels ,const Eigen::VectorXi& val_mask) {
     double acc=0.0,l=0.0;
     Eigen::MatrixXd label_encoder= encode_onehot(labels,nclass);
-    Eigen::MatrixXd h = forward(node_features,adj,false);
+    Eigen::MatrixXd h = forward(node_features,adj,num_thread,false);
 
     if(labels.size()==val_mask.size()){
         acc = accuracy(argmax(h),labels);
@@ -93,62 +90,32 @@ std::tuple<double,double> GAT::evaluate(const Eigen::MatrixXd& node_features, co
 
 
 
-void GAT::train(const Eigen::MatrixXd& features, const Eigen::MatrixXd& adjacency_matrix,
-                const Eigen::VectorXd& labels, const Eigen::VectorXi& train_mask, const Eigen::VectorXi& val_mask,
-                int num_epochs,double lr,double beta1,double beta2,double epsilon,int patience, int early_stop) {
-    std::vector<double> accs;
-    std::vector<double> loses;
+// void GAT::train(const Eigen::MatrixXd& features, const Eigen::MatrixXd& adjacency_matrix,
+//                 const Eigen::VectorXd& labels, const Eigen::VectorXi& train_mask, const Eigen::VectorXi& val_mask,
+//                 int num_epochs,double lr,double beta1,double beta2,double epsilon,int patience, int early_stop) {
+//     std::vector<double> accs;
+//     std::vector<double> loses;
 
     
-    Eigen::MatrixXd features_sub,adj_sub ,features_val_sub,adj_val_sub;
-    Eigen::VectorXd labels_sub,labels_val_sub;
-    std::tie(features_sub,adj_sub,labels_sub)=create_sub_data(features,adjacency_matrix,labels,train_mask);
-    std::tie(features_val_sub,adj_val_sub,labels_val_sub)=create_sub_data(features,adjacency_matrix,labels,val_mask);
-    Eigen::MatrixXd label_sub_encoder = encode_onehot(labels_sub,nclass);
+//     Eigen::MatrixXd features_sub,adj_sub ,features_val_sub,adj_val_sub;
+//     Eigen::VectorXd labels_sub,labels_val_sub;
+//     std::tie(features_sub,adj_sub,labels_sub)=create_sub_data(features,adjacency_matrix,labels,train_mask);
+//     std::tie(features_val_sub,adj_val_sub,labels_val_sub)=create_sub_data(features,adjacency_matrix,labels,val_mask);
+//     Eigen::MatrixXd label_sub_encoder = encode_onehot(labels_sub,nclass);
 
 
-    for (int epoch = 0; epoch < num_epochs; ++epoch) {
-        Eigen::MatrixXd h =  forward(features_sub,adj_sub);
-        Eigen::MatrixXd grad_output = h - label_sub_encoder;        
-        Eigen::MatrixXd out =  backward(adj_sub,grad_output,lr,beta1,beta2,epsilon);
-        std::cout << "fin backward "  << std::endl;
-        double acc,loss;
+//     for (int epoch = 0; epoch < num_epochs; ++epoch) {
+//         Eigen::MatrixXd h =  forward(features_sub,adj_sub,1,1);
+//         Eigen::MatrixXd grad_output = h - label_sub_encoder;        
+//         Eigen::MatrixXd out =  backward(adj_sub,1,1,grad_output,lr,beta1,beta2,epsilon);
+//         std::cout << "fin backward "  << std::endl;
+//         double acc,loss;
 
-        std::tie(acc,loss) = evaluate(features_val_sub, 
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        , labels, val_mask);
-        accs.push_back(acc);
-        loses.push_back(loss);
-    }
-}
+//         std::tie(acc,loss) = evaluate(features_val_sub, adj_val_sub,1 , labels, val_mask);
+//         accs.push_back(acc);
+//         loses.push_back(loss);
+//     }
+// }
 
 
 void GAT::set_num_epochs(int num_epochs){
@@ -165,6 +132,8 @@ string GAT::print_representation(){
     int GAT::get_num_epoch(){
         return num_epochs;
     }
+
+    // int get_num_epochs()
 
     int GAT::get_nclass(){
         return nclass;

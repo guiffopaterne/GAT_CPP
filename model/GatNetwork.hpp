@@ -27,17 +27,15 @@ public:
     GAT() = default; 
     GAT(int num_of_layers,std::vector<int> nhead,std::vector<int> num_features_per_layer,int nclass, double dropout, double alpha,bool verbose);
 
-    Eigen::MatrixXd forward(const Eigen::MatrixXd& x, const Eigen::MatrixXd& adj,bool isTrain);
-    Eigen::MatrixXd backward(const Eigen::MatrixXd& adj, const Eigen::MatrixXd& grad_output,double lr,double beta1 ,double beta2 ,double epsilon);
+    Eigen::MatrixXd forward(const Eigen::MatrixXd& x, const Eigen::MatrixXd& adj,int num_thread,int num_thread_head,bool isTrain);
+    Eigen::MatrixXd backward(const Eigen::MatrixXd& adj, int num_thread,int num_thread_head,const Eigen::MatrixXd& grad_output,double lr,double beta1 ,double beta2 ,double epsilon);
     std::string print_representation();
 
+    // void train(const Eigen::MatrixXd& features, const Eigen::MatrixXd& adjacency_matrix,
+    //             const Eigen::VectorXd& labels, const Eigen::VectorXi& train_mask, const Eigen::VectorXi& val_mask,
+    //             int num_epochs,double lr,double beta1,double beta2,double epsilon,int patience, int early_stop) ;
 
-
-    void train(const Eigen::MatrixXd& features, const Eigen::MatrixXd& adjacency_matrix,
-                const Eigen::VectorXd& labels, const Eigen::VectorXi& train_mask, const Eigen::VectorXi& val_mask,
-                int num_epochs,double lr,double beta1,double beta2,double epsilon,int patience, int early_stop) ;
-
-    std::tuple<double,double> evaluate(const Eigen::MatrixXd& node_features, const Eigen::MatrixXd& adj,const Eigen::VectorXd& labels,const Eigen::VectorXi& val_mask) ;
+    std::tuple<double,double> evaluate(const Eigen::MatrixXd& node_features, const Eigen::MatrixXd& adj, int num_thread,const Eigen::VectorXd& labels,const Eigen::VectorXi& val_mask) ;
     
     void set_num_epochs(int num_epochs);
     int get_num_epoch();

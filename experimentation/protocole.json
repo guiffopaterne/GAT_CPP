@@ -1,0 +1,18 @@
+{
+    "name":"protocole1",
+    "help":"mesurer le temps d'execution sur les donnees de maniere sequentielle",
+    "datasets":["cora","protate5k","protate10k","prostate100k"],
+    "current_dataset":"",
+    "output_dir":"experimentation/output",
+    "success":"",
+    "executions":{
+        "1":{
+            "argument": "",
+            "output_prefix_file":"prex1",
+            "dataset":"cora",
+            "epoch_prev":0,
+            "epoch_current":0,
+            "done":false
+        }
+    }
+}

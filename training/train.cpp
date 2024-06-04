@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -30,8 +29,8 @@ using namespace std;
 using namespace Eigen;
 namespace fs = std::filesystem;
 
-    TRAIN::TRAIN(int num_of_layers,vector<int> nhead,vector<int> num_features_per_layer,int nclass, double dropout, double alpha,bool verbose,int num_epochs,double lr,double beta1,double beta2,double epsilon,int patience, int early_stop):
-                num_of_layers(num_of_layers) ,dropout(dropout),nhead(nhead),num_features_per_layer(num_features_per_layer),alpha(alpha), nclass(nclass),verbose(verbose),num_epochs(num_epochs), lr(lr),beta1(beta1),epsilon(epsilon),patience(patience),early_stop(early_stop){
+    TRAIN::TRAIN(int num_of_layers,vector<int> nhead,vector<int> num_features_per_layer,int nclass, double dropout, double alpha,bool verbose,int num_epochs,double lr,double beta1,double beta2,double epsilon,int patience, int early_stop,int num_thread, int num_thread_head):
+                num_of_layers(num_of_layers) ,dropout(dropout),nhead(nhead),num_features_per_layer(num_features_per_layer),alpha(alpha), nclass(nclass),verbose(verbose),num_epochs(num_epochs), lr(lr),beta1(beta1),epsilon(epsilon),patience(patience),early_stop(early_stop), num_thread(num_thread), num_thread_head(num_thread_head){
         gat = GAT(num_of_layers,nhead,num_features_per_layer, nclass, dropout,alpha,verbose);
 
 }
@@ -74,15 +73,15 @@ void TRAIN::excecute(const Eigen::MatrixXd& features, const Eigen::MatrixXd& adj
     
 
     for (int epoch = 0; epoch < num_epochs; ++epoch) {
-        Eigen::MatrixXd h =  gat.forward(features_sub,adj_sub,true);
+        Eigen::MatrixXd h =  gat.forward(features_sub,adj_sub,num_thread,num_thread_head,true);
         Eigen::MatrixXd grad_output = h - label_sub_encoder;        
-        Eigen::MatrixXd out =  gat.backward(adj_sub,grad_output,lr,beta1,beta2,epsilon);
+        Eigen::MatrixXd out =  gat.backward(adj_sub,num_thread,num_thread_head,grad_output,lr,beta1,beta2,epsilon);
         std::cout << "fin backward "  << std::endl;
         double acc,loss;
         shape(features_val_sub,"features_val_sub",true);
         shape(adj_val_sub,"adj_val_sub",true);
         shape(labels_val_sub,"labels_val_sub",true);
-        std::tie(acc,loss) = gat.evaluate(features_val_sub, adj_val_sub, labels_val_sub,val_mask);
+        std::tie(acc,loss) = gat.evaluate(features_val_sub, adj_val_sub, num_thread,labels_val_sub,val_mask);
         accs.push_back(acc);
         loses.push_back(loss);
         if(epoch%2==0 && epoch > 0){
@@ -101,5 +100,5 @@ std::tuple<double,double> TRAIN::evaluate(const Eigen::MatrixXd& node_features, 
             std::tie(features_sub,adj_sub,labels_sub)=create_sub_data(node_features,adj,labels,test_mask);
     else
         std::tie(features_sub,adj_sub,labels_sub)=std::make_tuple(node_features,adj,labels);
-    return  gat.evaluate(features_sub, adj_sub, labels_sub,test_mask);
+    return  gat.evaluate(features_sub, adj_sub, num_thread,labels_sub,test_mask);
 }

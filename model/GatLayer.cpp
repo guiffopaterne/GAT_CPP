@@ -1,8 +1,10 @@
 #include <iostream>
-#include <eigen3/Eigen/Dense>
 #include <cmath>
 #include <random>
-
+#include <thread>
+#include <mutex>
+#include <algorithm>
+#include <eigen3/Eigen/Dense>
 #include <cereal/types/string.hpp>
 #include <cereal/types/vector.hpp>
 #include <cereal/types/tuple.hpp>
@@ -65,11 +67,10 @@ using namespace Eigen;
     }
 
 
-    Eigen::MatrixXd GatLayer::forward(const Eigen::MatrixXd& h, const Eigen::MatrixXd& adj,bool isTrain=true) {
+    Eigen::MatrixXd GatLayer::forward(const Eigen::MatrixXd& h, const Eigen::MatrixXd& adj, int num_thread_head,bool isTrain=true) {
         std::vector<Eigen::MatrixXd> head_outputs; // Vecteur pour stocker les sorties de chaque tête
         X=h;
-        shape(X,"X",verbose);
-        shape(h,"h",verbose);
+        shape(X,"X",verbose);shape(h,"h",verbose);
         cout<<" forward en cours \n"<<endl;
         // Pour chaque tête d'attention, calculer la sortie et l'ajouter au vecteur head_outputs
         for (int i = 0; i < num_of_heads; ++i) {
@@ -77,22 +78,57 @@ using namespace Eigen;
             head_outputs.push_back(layer[i].forward(h, adj,isTrain)); // Appel à la fonction forward de chaque tête
             cout<<" \t\tfin "<<i+1<<"\n"<<endl;
         }
-
         // Empiler ou concaténer les sorties des têtes d'attention en fonction de la configuration concat
-        Eigen::MatrixXd output;
-        if (concat) {
-            cout<<" forward en cours (concatenation...)  \n"<<endl;
-            output = stack_heads(head_outputs);
-            cout<<" forward en cours (concatenation... FIN, utilisation de l'activation RELU)  \n"<<endl;
-            return output.unaryExpr([this](double x) { return elu(x,alpha); }); // Concaténation des sorties
-        } else {
-            cout<<" forward en cours ( pas de concatenation sommation ...)  \n"<<endl;
-            output = softmax(sum_heads(head_outputs),1); // Addition des sorties
-        }
-        return output;
+        return group_output(head_outputs);
     }
 
-    Eigen::MatrixXd GatLayer::backward(const Eigen::MatrixXd& adj, const Eigen::MatrixXd& gradput, double lr,double beta1 ,double beta2 ,double epsilon){
+    Eigen::MatrixXd GatLayer::group_output(std::vector<Eigen::MatrixXd>& head_outputs){
+        Eigen::MatrixXd output;
+        if (concat) {
+            output = stack_heads(head_outputs);
+            return output.unaryExpr([this](double x) { return elu(x,alpha); }); // Concaténation des sorties
+        } else {
+            return softmax(sum_heads(head_outputs),1); // Addition des sorties
+        }
+    }
+
+    Eigen::MatrixXd GatLayer::forward_sequentielle(std::vector<Eigen::MatrixXd>& head_outputs,const Eigen::MatrixXd& h, const Eigen::MatrixXd& adj,const int num_threads,bool isTrain){
+        for (int i = 0; i < num_of_heads; ++i) {
+            cout<<"\t\t forward du head ="<<i+1<<endl;
+            head_outputs.push_back(layer[i].forward(h, adj,isTrain)); // Appel à la fonction forward de chaque tête
+            cout<<" \t\tfin "<<i+1<<"\n"<<endl;
+        }
+        return group_output(head_outputs);
+    }
+
+   Eigen::MatrixXd GatLayer::forward_parallele_head(std::vector<Eigen::MatrixXd>& head_outputs,const Eigen::MatrixXd& h, const Eigen::MatrixXd& adj,const int num_threads,bool isTrain=true) {
+
+        std::vector<std::thread> threads(num_threads);
+        std::mutex mutex; 
+        // Lancez le nombre de threads souhaités
+        std::atomic<int> next_head(0);
+        for (int i = 0; i < num_threads; ++i) {
+            threads[i] = std::thread([&]() {
+                while (true) {
+                    int head_idx = next_head.fetch_add(1);
+                    if (head_idx >= num_of_heads) break;
+                    cout << "\t\t forward du head =" << head_idx + 1 << endl;
+                    Eigen::MatrixXd output = layer[head_idx].forward(h, adj, isTrain);
+                    cout << " \t\tfin " << head_idx + 1 << "\n" << endl;
+                    // Verrouillez le mutex pour garantir un accès sécurisé aux threads
+                    std::lock_guard<std::mutex> lock(mutex);
+                    head_outputs[head_idx] = output;
+                }
+            });
+        }
+        // atendre que les threads finissent
+        for (auto& t : threads) {
+            t.join();
+        }
+        return group_output(head_outputs);
+    }
+
+    Eigen::MatrixXd GatLayer::backward(const Eigen::MatrixXd& adj, int num_thread_head,const Eigen::MatrixXd& gradput, double lr,double beta1 ,double beta2 ,double epsilon){
         std::vector<Eigen::MatrixXd> head_gradients;
         std::vector<Eigen::MatrixXd> grad_output;
 
@@ -116,5 +152,43 @@ using namespace Eigen;
         return total_gradient;
     }
 
+
+    Eigen::MatrixXd GatLayer::backward_parallele_head(bool p,std::vector<Eigen::MatrixXd>& head_gradients ,std::vector<Eigen::MatrixXd>& grad_output, const Eigen::MatrixXd& adj, const Eigen::MatrixXd& gradput, double lr,double beta1 ,double beta2 ,double epsilon,const int num_threads){
+        std::vector<std::thread> threads(num_threads);
+        std::mutex mutex;
+        std::atomic<int> next_head(0);
+        for (int i = 0; i < num_threads; ++i) {
+            threads[i] = std::thread([&, i]() {
+                while (true) {
+                    int head_idx = next_head.fetch_add(1);
+                    if (head_idx >= num_of_heads) break;
+
+                    Eigen::MatrixXd head_gradient = layer[head_idx].backward_update_parameters(
+                        X, adj, (p == false) ? gradput : grad_output[head_idx], lr, beta1, beta2, epsilon);
+
+                    // lock mutex pour securise l'espace memoire lors de l'ecriture
+                    std::lock_guard<std::mutex> lock(mutex);
+                    head_gradients[head_idx] = head_gradient;
+                }
+            });
+        }
+
+        // Wait for all threads to finish
+        for (auto& t : threads) {
+            t.join();
+        }
+        Eigen::MatrixXd total_gradient = sum_heads(head_gradients);
+        return total_gradient;
+    }
+
+    Eigen::MatrixXd GatLayer::backward_sequentielle(bool p,std::vector<Eigen::MatrixXd>& head_gradients ,std::vector<Eigen::MatrixXd>& grad_output, const Eigen::MatrixXd& adj, const Eigen::MatrixXd& gradput, double lr,double beta1 ,double beta2 ,double epsilon){
+        for (int i = 0; i < num_of_heads; ++i) {
+            Eigen::MatrixXd head_gradient = layer[i].backward_update_parameters( X, adj,
+             (p==false)? gradput : grad_output[i]
+             ,lr,beta1,beta2,epsilon);
+            head_gradients.push_back(head_gradient);
+        }
+        return sum_heads(head_gradients);
+    }
     // Versioned deserialization (optional, for future compatibility)
    

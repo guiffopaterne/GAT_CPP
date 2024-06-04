@@ -51,10 +51,15 @@ int main(int argc, char* argv[]) {
     vector<int> num_features_per_layer = {1433,8,NUM_CLASSES};
     int continue_training = 0;
 
+    int num_thread=1;
+    int num_thread_head=1;
+    bool auto_thread_attribut=false;
+
     // Define options description
   po::options_description generic("Options Generiques");
   po::options_description data("Options des Donnees");
   po::options_description model("Contruction du Model");
+  po::options_description threading("Execution parallele du Model");
   generic.add_options()
   ("help","Imprime l'aide")
   ("verbose,v", po::bool_switch(&verbose)->default_value(verbose), "Verbose output");
@@ -94,6 +99,11 @@ int main(int argc, char* argv[]) {
               }
           })
           , "Number of features per layer (comma separated)");
+
+      threading.add_options()
+      ("num_thread,nt", po::value<int>(&num_thread)->default_value(num_thread),"Nombre de thread pour le forward en block"),
+      ("num_thread_head,nth", po::value<int>(&num_thread_head)->default_value(num_thread_head),"Nombre de thread pour le forward des entetes"),
+      ("auto_thread,at", po::value<bool>(&auto_thread_attribut)->default_value(auto_thread_attribut),"attribut les threads automatiquement");
   
   // Parse command line arguments
   po::variables_map vm;
@@ -138,7 +148,7 @@ int main(int argc, char* argv[]) {
 
     cout<<"Fin de la Construction du Gat"<<endl;
     cout<<"Conversion du label en onehot encoder"<<endl;
-    TRAIN t = TRAIN(num_of_layers,num_heads_per_layer,num_features_per_layer, NUM_CLASSES, dropout,alpha,verbose,epoch,learning_rate,beta1,beta2,epsilon,patience,early_stop);
+    TRAIN t = TRAIN(num_of_layers,num_heads_per_layer,num_features_per_layer, NUM_CLASSES, dropout,alpha,verbose,epoch,learning_rate,beta1,beta2,epsilon,patience,early_stop,num_thread,num_thread_head);
     // cherche s'il existe une model dans le fichier pretrained verifie sil le num_epoch est == a celle donne par l'utilisateur si < continue l'entrainement
     t.excecute(features, adjacency_matrix, labels, train_mask, val_mask);
     // sauvergarde du model

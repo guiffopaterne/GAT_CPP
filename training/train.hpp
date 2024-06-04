@@ -25,7 +25,7 @@ using namespace std;
 class TRAIN {
 public:
     TRAIN() = default; 
-    TRAIN(int num_of_layers,vector<int> nhead,vector<int> num_features_per_layer,int nclass, double dropout, double alpha,bool verbose,int num_epochs,double lr,double beta1,double beta2,double epsilon,int patience, int early_stop);
+    TRAIN(int num_of_layers,vector<int> nhead,vector<int> num_features_per_layer,int nclass, double dropout, double alpha,bool verbose,int num_epochs,double lr,double beta1,double beta2,double epsilon,int patience, int early_stop,int num_thread, int num_thread_head);
 
     void excecute(const Eigen::MatrixXd& features, const Eigen::MatrixXd& adjacency_matrix,
                 const Eigen::VectorXd& labels, const Eigen::VectorXi& train_mask, const Eigen::VectorXi& val_mask) ;
@@ -50,6 +50,8 @@ private:
     double epsilon;
     int patience;
     int early_stop;
+    int num_thread;
+    int num_thread_head =1;
     GAT gat;
 };
 

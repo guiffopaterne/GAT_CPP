@@ -86,6 +86,28 @@ using namespace Eigen;
         return h_prime;
     }
 
+    std::tuple<Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd> GatUnit::backward(const Eigen::MatrixXd& X,const Eigen::MatrixXd& d_h_prime) {
+        // Compute gradients for the skip connection
+        Eigen::MatrixXd d_a = d_h_prime.colwise().sum();
+        // Compute gradients for Wh
+        Eigen::MatrixXd d_Wh = attention.transpose() * d_h_prime;
+        // Compute gradients for attention
+        Eigen::MatrixXd d_attention = d_h_prime * Wh.transpose();
+        // Compute gradients for e
+        Eigen::MatrixXd d_e = d_attention.cwiseProduct(e.unaryExpr([this](double x) { return leakyReLUPrime(x, alpha); }));
+        // Compute gradients for Wh1 and Wh2
+        Eigen::MatrixXd d_Wh1 = d_e.rowwise().sum().replicate(1, Wh.rows()).cwiseProduct(scoring_fn_source.replicate(Wh.rows(), 1));
+        Eigen::MatrixXd d_Wh2 = d_e.colwise().sum().replicate(Wh.rows(), 1).cwiseProduct(scoring_fn_target.replicate(Wh.rows(), 1));
+        // Compute gradients for scoring_fn_source and scoring_fn_target
+        Eigen::MatrixXd d_scoring_fn_source = (d_Wh1.cwiseProduct(Wh)).rowwise().sum();
+        Eigen::MatrixXd d_scoring_fn_target = (d_Wh2.cwiseProduct(Wh)).rowwise().sum();
+        // Compute gradients for W
+        Eigen::MatrixXd d_X = d_Wh.unaryExpr([this](double x) { return dropNode_prime(x,dropout); });
+        Eigen::MatrixXd d_W = X.unaryExpr([this](double x) { return dropNode_prime(x,dropout); }) * d_X.transpose();
+        // Compute gradients for X (d_h)
+        Eigen::MatrixXd d_h = d_Wh.unaryExpr([this](double x) { return dropNode_prime(x,dropout); }) * W.transpose();
+        return std::make_tuple(d_h, d_W, d_a, d_scoring_fn_source, d_scoring_fn_target);
+}
 std::tuple<Eigen::MatrixXd,Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd> GatUnit::backward2(const Eigen::MatrixXd& X, const Eigen::MatrixXd& adj,const Eigen::MatrixXd& d_h_prime) {
         // Gradients with respect to inputs (assuming leaky ReLU activation)
         shape(d_h_prime,"d_h_prime",verbose);
@@ -93,11 +115,11 @@ std::tuple<Eigen::MatrixXd,Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Ei
         if(d_h_prime.cols() != Wh.rows()){
             cerr<<"erreur taille des matrix "<<endl;
         }
-        Eigen::MatrixXd d_e  = d_h_prime * Wh.transpose();
-        shape(d_e,"d_e",verbose);
-        d_e = d_e.cwiseProduct(e.unaryExpr([this](double x){return leakyReLUPrime(x, alpha);}));  // Apply leaky ReLU derivative
-        // Backpropagate through attention calculation
         Eigen::MatrixXd d_attention = d_h_prime * Wh.transpose();
+        
+        Eigen::MatrixXd d_e = d_attention.cwiseProduct(e.unaryExpr([this](double x){return leakyReLUPrime(x, alpha);}));  // Apply leaky ReLU derivative
+        // Backpropagate through attention calculation
+        shape(d_e,"d_e",verbose);
         shape(d_attention,"d_attention",verbose);
         // Separate gradients for source and target nodes
         Eigen::MatrixXd d_Wh1 = d_attention.colwise().sum();
@@ -155,7 +177,8 @@ std::tuple<Eigen::MatrixXd,Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Ei
         // Mise à jour des paramètres
         Eigen::MatrixXd grad_h,grad_a, grad_source, grad_target,grad_W;
         // backward propagation
-        std::tie(grad_h,grad_W,grad_a, grad_source, grad_target) = backward2(h,adj,grad_output);
+        // std::tie(grad_h,grad_W,grad_a, grad_source, grad_target) = backward2(h,adj,grad_output);
+        std::tie(grad_h,grad_W,grad_a, grad_source, grad_target) = backward(h,grad_output);
         // mise a jour des poids W
         W = update_parameters(W, grad_W,lr,beta1,beta2,epsilon);
         // mise ajour des score d'attention
@@ -174,53 +197,3 @@ std::tuple<Eigen::MatrixXd,Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Ei
     // Si la valeur aléatoire est inférieure à la probabilité de dropout, le neurone est "droppé"
     return  (random_value < dropout ) ? 0.00: x;
     }
-
-    
-
-        // std::tuple<Eigen::MatrixXd,Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd> GatUnit::backward(const Eigen::MatrixXd& h, const Eigen::MatrixXd& adj, const Eigen::MatrixXd& grad_output ) {
-        // // Gradient w.r.t. attention (d_attention)
-        // Eigen::MatrixXd d_attention = grad_output * Wh.transpose();
-        // shape(d_attention,"d_attention",verbose);
-
-        // // Gradient w.r.t. e (d_e)
-        // Eigen::MatrixXd d_e = d_attention.array().cwiseProduct((attention.array() > 0).select(d_attention.array(), Eigen::MatrixXd::Zero(attention.rows(), attention.cols())));
-        // d_e = d_e.unaryExpr([this](double x) { return leakyReLUPrime(x, alpha); });
-        // shape(d_e,"d_e",verbose);
-        // // Gradients w.r.t. Wh (d_Wh) and scoring functions (d_scoring_fn_target, d_scoring_fn_source)
-        // Eigen::MatrixXd d_Wh = d_e.transpose() * attention;
-        // shape(d_Wh,"d_Wh",verbose);
-        // shape(Wh,"Wh",verbose);
-        // Eigen::MatrixXd Wh1 = d_e * Eigen::RowVectorXd::Ones(d_e.cols()).transpose();
-        // Eigen::MatrixXd Wh2 = d_e.transpose()* (Eigen::RowVectorXd::Ones(d_e.rows())).transpose();
-        // shape(Wh1,"Wh1",verbose);
-        // shape(Wh2,"Wh2",verbose);
-        // // Gradient w.r.t. scoring_fn_source (d_scoring_fn_source)
-        // Eigen::MatrixXd d_scoring_fn_source = Wh.transpose() * Wh1;
-        // // Gradient w.r.t. scoring_fn_target (d_scoring_fn_target)
-        // Eigen::MatrixXd d_scoring_fn_target = Wh.transpose() * Wh2;
-
-
-        // // Eigen::MatrixXd d_scoring_fn_target = d_e.transpose() * Wh * Wh.transpose();
-        // shape(d_scoring_fn_target,"d_scoring_fn_target",verbose);
-        // // Eigen::MatrixXd d_scoring_fn_source = d_e.transpose() * Wh;
-        // shape(d_scoring_fn_source,"d_scoring_fn_source",verbose);
-
-        // // Gradient w.r.t. W (d_W)
-        // Eigen::MatrixXd d_W = (h.transpose() * d_Wh.unaryExpr([this](double x) { return dropNode_prime(x,dropout); }));
-        // shape(d_W,"d_W",verbose);
-        // // Gradient w.r.t. bias (d_a)
-        // Eigen::MatrixXd d_a;
-        // if (a.rows()==h.rows()) {
-        //     d_a = d_attention.colwise().sum();  // Sum across columns for element-wise bias
-        // } else {
-        //     d_a = grad_output.colwise().sum();  // Sum across columns for single bias term
-        // }
-        // // Eigen::MatrixXd d_a = grad_output.colwise().sum();
-        // shape(d_a,"d_a",verbose);
-        // shape(grad_output,"grad_output",verbose);
-        // shape(W,"W",verbose);
-        // // Return gradient w.r.t. input features (d_X)
-        // Eigen::MatrixXd d_X = grad_output * W.unaryExpr([this](double x) { return dropNode_prime(x,dropout); }).transpose();
-        // shape(d_X,"d_X",verbose);
-        // return std::make_tuple(d_X,d_W,d_a,d_scoring_fn_source,d_scoring_fn_target);
-        // }

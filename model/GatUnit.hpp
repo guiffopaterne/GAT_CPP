@@ -51,11 +51,10 @@ public:
     GatUnit(int in_features, int out_features ,double dropout, double alpha,string name,int nhead,bool verbose);
     Eigen::MatrixXd initialize_weights(int input_size, int output_size);
     Eigen::MatrixXd forward(const Eigen::MatrixXd& X, const Eigen::MatrixXd& adj,bool isTrain);
-    std::tuple<Eigen::MatrixXd,Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd> backward(const Eigen::MatrixXd& h, const Eigen::MatrixXd& adj, const Eigen::MatrixXd& grad_output );
     std::tuple<Eigen::MatrixXd,Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd> backward2(const Eigen::MatrixXd& d_h_prime, const Eigen::MatrixXd& X, const Eigen::MatrixXd& adj);
     Eigen::MatrixXd update_parameters(const Eigen::MatrixXd& param , const Eigen::MatrixXd& grad,double lr,double beta1 ,double beta2 ,double epsilon);
     Eigen::MatrixXd backward_update_parameters(const Eigen::MatrixXd& h, const Eigen::MatrixXd& adj, const Eigen::MatrixXd& grad_output,double lr,double beta1 ,double beta2 ,double epsilon);
-    
+    std::tuple<Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd> backward(const Eigen::MatrixXd& X,const Eigen::MatrixXd& d_h_prime);
     
     
 private:
