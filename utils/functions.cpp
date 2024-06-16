@@ -228,6 +228,8 @@ Eigen::VectorXd create_sub_labels_vector(const Eigen::VectorXd& labels_vector, c
   return sub_labels_vector;
 }
 
+
+
 std::tuple<Eigen::MatrixXd,Eigen::MatrixXd,Eigen::VectorXd> create_sub_data(const Eigen::MatrixXd& features_matrix ,const Eigen::MatrixXd& adj_matrix,const Eigen::VectorXd& labels_vector, const Eigen::VectorXi& mask){
     Eigen::MatrixXd sub_features = create_sub_features_matrix(features_matrix,mask);
     Eigen::MatrixXd adj_sub = create_sub_adjacency_matrix(adj_matrix,mask);
@@ -239,6 +241,10 @@ std::tuple<Eigen::MatrixXd,Eigen::MatrixXd,Eigen::VectorXd> create_sub_data(cons
 double elu(const double x,const double alpha) {
         return x > 0 ? x : alpha * (std::exp(x) - 1);
     }
+
+double elu_prime(const double x, const double alpha) {
+  return x > 0 ? 1.0 : alpha * std::exp(x);
+}
 
 double leakyReLU(const double x,const double alpha) {
         return x > 0 ? x : alpha * x;

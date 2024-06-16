@@ -21,6 +21,7 @@ double nllLoss(const Eigen::MatrixXd& SoftmaxOutput, const Eigen::MatrixXd& targ
 double nllLoss(const Eigen::MatrixXd& Output, const Eigen::MatrixXd& target,const Eigen::VectorXi& mask,int axis);
 std::tuple<Eigen::VectorXi, Eigen::VectorXi, Eigen::VectorXi> createMask(const int size,const int train_size, const int val_size, bool isShuffle);
 double elu(double x,double alpha);
+double elu_prime(const double x, const double alpha);
 double leakyReLU(double x,double alpha);
 double leakyReLUPrime(double x,double alpha);
 double dropNode(double x,double dropout) ;

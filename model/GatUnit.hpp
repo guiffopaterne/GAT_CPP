@@ -48,7 +48,7 @@ namespace cereal
 class GatUnit {
 public:
     GatUnit() = default; 
-    GatUnit(int in_features, int out_features ,double dropout, double alpha,string name,int nhead,bool verbose);
+    GatUnit(int in_features, int out_features ,double dropout, double alpha,bool concat,string name,int nhead,bool verbose);
     Eigen::MatrixXd initialize_weights(int input_size, int output_size);
     Eigen::MatrixXd forward(const Eigen::MatrixXd& X, const Eigen::MatrixXd& adj,bool isTrain);
     std::tuple<Eigen::MatrixXd,Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd> backward2(const Eigen::MatrixXd& d_h_prime, const Eigen::MatrixXd& X, const Eigen::MatrixXd& adj);
@@ -63,6 +63,8 @@ private:
     int num_of_heads;
     double dropout;
     double alpha;
+    bool concat;
+    int nhead;
     Eigen::MatrixXd W;
     Eigen::MatrixXd Wh;
     Eigen::MatrixXd e;
@@ -72,7 +74,7 @@ private:
     Eigen::MatrixXd scoring_fn_source;
     bool verbose=false;
     std::string name;
-    int nhead;
+    
 
 
     void initializeParameters();

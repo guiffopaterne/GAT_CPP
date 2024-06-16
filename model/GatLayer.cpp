@@ -20,7 +20,7 @@ using namespace Eigen;
         : in_features(in_features), out_features(out_features),num_of_heads(num_of_heads) ,dropout(dropout), alpha(alpha), concat(concat), name(name),verbose(verbose){
          for (int i = 0; i < num_of_heads; ++i) {
              cout<<"Head ="<<i+1<<" out_features"<<endl;
-            GatUnit head_unit(in_features, out_features, dropout, alpha,name+"HEAD -"+to_string(i+1),i,verbose);
+            GatUnit head_unit(in_features, out_features, dropout, alpha,concat,name+"HEAD -"+to_string(i+1),i,verbose);
             layer.push_back(head_unit);
             }
     }
